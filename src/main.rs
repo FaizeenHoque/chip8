@@ -8,6 +8,41 @@ const SCALE: usize = 20;
 const WINDOW_WIDTH: usize = CHIP8_WIDTH * SCALE;
 const WINDOW_HEIGHT: usize = CHIP8_HEIGHT * SCALE;
 
+const FONTSET: [u8; 80] = [
+    // 0
+    0xF0, 0x90, 0x90, 0x90, 0xF0,
+    // 1
+    0x20, 0x60, 0x20, 0x20, 0x70,
+    // 2
+    0xF0, 0x10, 0xF0, 0x80, 0xF0,
+    // 3
+    0xF0, 0x10, 0xF0, 0x10, 0xF0,
+    // 4
+    0x90, 0x90, 0xF0, 0x10, 0x10,
+    // 5
+    0xF0, 0x80, 0xF0, 0x10, 0xF0,
+    // 6
+    0xF0, 0x80, 0xF0, 0x90, 0xF0,
+    // 7
+    0xF0, 0x10, 0x20, 0x40, 0x40,
+    // 8
+    0xF0, 0x90, 0xF0, 0x90, 0xF0,
+    // 9
+    0xF0, 0x90, 0xF0, 0x10, 0xF0,
+    // A
+    0xF0, 0x90, 0xF0, 0x90, 0x90,
+    // B
+    0xE0, 0x90, 0xE0, 0x90, 0xE0,
+    // C
+    0xF0, 0x80, 0x80, 0x80, 0xF0,
+    // D
+    0xE0, 0x90, 0x90, 0x90, 0xE0,
+    // E
+    0xF0, 0x80, 0xF0, 0x80, 0xF0,
+    // F
+    0xF0, 0x80, 0xF0, 0x80, 0x80,
+];
+
 struct Cpu {
     pub registers: [u8; 16], // V0 through VF (VF is often used as a flag)
     pub index: u16, // I register — usually holds a memory address
@@ -25,7 +60,7 @@ struct Cpu {
 
 impl Cpu {
     pub fn new() -> Self {
-        Cpu {
+        let mut cpu = Cpu {
             registers: [0; 16],
             index: 0,
             pc: 0x200,
@@ -35,7 +70,13 @@ impl Cpu {
             sound_timer: 0,
             memory: [0; 4096],
             display: [[false; 64]; 32],
+        };
+
+        for (i, &byte) in FONTSET.iter().enumerate() {
+            cpu.memory[0x50 + i] = byte;
         }
+
+        cpu
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
@@ -96,7 +137,8 @@ impl Cpu {
 
                     0x00EE => {
                         // return
-                        todo!()
+                        self.sp -= 1;
+                        self.pc = self.stack[self.sp as usize];
                     }
 
                     _ => {
@@ -105,16 +147,104 @@ impl Cpu {
                 }
              } 
             0x1000 => {  self.pc = nnn } // JP addr
-            0x2000 => { todo!() }
-            0x3000 => { todo!() }
-            0x4000 => { todo!() }
-            0x5000 => { todo!() }
+            0x2000 => { // CALL addr
+                self.stack[self.sp as usize] = self.pc;
+                self.sp += 1;
+                self.pc = nnn;
+            } 
+            0x3000 => { // SE Vx, byte
+                if self.registers[vx] == kk {
+                    self.pc += 2
+                }
+            } 
+            0x4000 => { 
+                if self.registers[vx] != kk {
+                    self.pc += 2
+                }
+            } // SNE Vx, byte
+            0x5000 => { todo!() } // SE Vx, Vy
             0x6000 => {  self.registers[vx] = kk; } // LD Vx, byte
             0x7000 => {  self.registers[vx] = self.registers[vx].wrapping_add(kk) } // ADD Vx, byte
-            0x9000 => { todo!() }
+            0x8000 => { todo!() } // 8xy0 - LD Vx, Vy | 8xy1 - OR Vx, Vy | 8xy2 - AND Vx, Vy | 8xy3 - XOR Vx, Vy | 8xy4 - ADD Vx, Vy | 8xy5 - SUB Vx, Vy | 8xy6 - SHR Vx {, Vy} | 8xy7 - SUBN Vx, Vy | 8xyE - SHL Vx {, Vy} 
+            0x9000 => { todo!() } // SNE Vx, Vy
             0xA000 => {  self.index = nnn } //  LD I, addr
-            0xD000 => { todo!() }
-            0xF000 => { todo!() }
+            0xD000 => { 
+                // decoder already extracted vx, vy and n
+                // example: the opcode is D341
+                // which means, `Draw a sprite that is 1 byte tall at coordinates (V3, V4)`
+                
+                // read the coordinates , vx and vy are not coordinates but rather REGISTER NUMBERS
+                let x  = self.registers[vx] as usize;
+                let y = self.registers[vy] as usize;
+                
+                // Reset the collision flag, if collision - it'll be changed back to 1
+                self.registers[0xF] = 0;
+
+                // loop through each sprite row, suppose n=5
+                // this becomes
+                // row = 0
+                // row = 1
+                // row = 2
+                // row = 3
+                // row = 4
+                for row in 0..n {
+                    // read the byte
+                    // suppose I = 0x300
+                    // 300 : 11110000
+                    // 301 : 10010000
+                    // 302 : 10010000
+                    // 303 : 10010000
+                    // 304 : 11110000
+                    // Each byte is one horizontal line of the sprite
+                    let sprite = self.memory[self.index as usize + row as usize];
+
+                    // loop through every bit. (every sprite has 8 bits)
+                    for col in 0..8 {
+                        // Extract one pixel
+                        let pixel = (sprite >> (7 - col)) & 1;
+
+                        // ignore 0 bits, If the sprite bit is then dont draw anything.
+                        if pixel == 1 {
+                            // compute screen position
+                            let px = (x + col) % CHIP8_WIDTH;
+                            let py = (y + row as usize) % CHIP8_HEIGHT;
+                            
+                            // detect collision, supposed before drawing 
+                            // █ exists
+                            // The sprite also wants to draw
+                            // █ on top
+                            // CHIP-8 uses XOR drawing, so.. `1 XOR 1 = 0` and the pixel disappears
+                            if self.display[py][px] {
+                                self.registers[0xF] = 1;
+                            }
+                            
+                            // Toggle the pixel
+                            self.display[py][px] = !self.display[py][px];
+                        }
+                    }
+                }
+            }
+            0xF000 => { 
+                match kk {
+                    0x29 => {
+                        self.index = 0x50 + (self.registers[vx] as u16 * 5);
+                    }
+
+                    0x15 => {
+                        self.delay_timer = self.registers[vx];
+                    }
+
+                    0x07 => {
+                        self.registers[vx] = self.delay_timer;
+                    }
+
+                    0x18 => {
+                        self.sound_timer = self.registers[vx];
+                    }
+
+                    _ => todo!("Opcode {:04X}", opcode),
+                }
+             }
             _ => { unimplemented!("Opcode {:04X}", opcode); }
         }
         
@@ -123,7 +253,7 @@ impl Cpu {
 
 fn main() {
     // get rom from file and put it in rom_bytes
-    let rom_bytes = std::fs::read("roms/test.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read("roms/Airplane.ch8").expect("Failed to read ROM");
     // create a new cpu
     let mut cpu = Cpu::new();
     // load the rom using the rom_bytes var
@@ -148,6 +278,7 @@ fn main() {
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
         // fetch instructs from rom and place them into opcode var
         let opcode = cpu.fetch();
+        println!("{:03X}: {:04X}", cpu.pc - 2, opcode);
         // execute opcodes
         cpu.execute(opcode);
         
