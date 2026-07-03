@@ -29,10 +29,24 @@ impl Cpu {
             self.memory[start + i] = byte;
         }
     }
+
+    pub fn fetch(&mut self) -> u16 {
+        let high_byte = *self.memory.get(self.pc as usize).unwrap_or(&0) as u16;
+        let low_byte = *self.memory.get((self.pc + 1) as usize).unwrap_or(&0) as u16;
+        let opcode = (high_byte << 8) | low_byte;
+        self.pc += 2;
+        opcode
+    }
 }
 
 fn main() {
-    let rom_bytes = std::fs::read("roms/test.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read("roms/Puzzle.ch8").expect("Failed to read ROM");
     let mut cpu = Cpu::new();
     cpu.load_rom(&rom_bytes);
+
+    loop {
+        let opcode = cpu.fetch();
+        println!("{:04X}", opcode);
+        // decode + execute 
+    }
 }
