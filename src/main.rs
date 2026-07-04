@@ -332,7 +332,7 @@ impl Cpu {
 
 fn main() {
     // get rom from file and put it in rom_bytes
-    let rom_bytes = std::fs::read("roms/Airplane.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read("roms/Chip8 Picture.ch8").expect("Failed to read ROM");
     // create a new cpu
     let mut cpu = Cpu::new();
     // load the rom using the rom_bytes var
