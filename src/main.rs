@@ -1,4 +1,4 @@
-use minifb::{self, Key::P, Window, WindowOptions};
+use minifb::{self, CursorStyle::ResizeAll, Key::P, Window, WindowOptions};
 
 const CHIP8_WIDTH: usize = 64;
 const CHIP8_HEIGHT: usize = 32;
@@ -126,7 +126,8 @@ impl Cpu {
         let nnn = opcode & 0x0FFF;      
 
         match opcode & 0xF000 {
-            0x0000 => {  // CLS
+            0x0000 => {  
+                // CLS
                 match opcode {
                     0x00E0 => {
                         // clear screen
@@ -147,26 +148,80 @@ impl Cpu {
                 }
              } 
             0x1000 => {  self.pc = nnn } // JP addr
-            0x2000 => { // CALL addr
+            0x2000 => { 
+                // CALL addr
                 self.stack[self.sp as usize] = self.pc;
                 self.sp += 1;
                 self.pc = nnn;
             } 
-            0x3000 => { // SE Vx, byte
+            0x3000 => { 
+                // SE Vx, byte
                 if self.registers[vx] == kk {
                     self.pc += 2
                 }
             } 
             0x4000 => { 
+                // SNE Vx, byte
                 if self.registers[vx] != kk {
                     self.pc += 2
                 }
-            } // SNE Vx, byte
-            0x5000 => { todo!() } // SE Vx, Vy
+            } 
+            0x5000 => { 
+                // SE Vx, Vy
+                if self.registers[vx] == self.registers[vy] {
+                    self.pc += 2;
+                }
+             } 
             0x6000 => {  self.registers[vx] = kk; } // LD Vx, byte
             0x7000 => {  self.registers[vx] = self.registers[vx].wrapping_add(kk) } // ADD Vx, byte
-            0x8000 => { todo!() } // 8xy0 - LD Vx, Vy | 8xy1 - OR Vx, Vy | 8xy2 - AND Vx, Vy | 8xy3 - XOR Vx, Vy | 8xy4 - ADD Vx, Vy | 8xy5 - SUB Vx, Vy | 8xy6 - SHR Vx {, Vy} | 8xy7 - SUBN Vx, Vy | 8xyE - SHL Vx {, Vy} 
-            0x9000 => { todo!() } // SNE Vx, Vy
+            0x8000 => { 
+                // 8xy0 - LD Vx, Vy  
+                // 8xy1 - OR Vx, Vy  
+                // 8xy2 - AND Vx, Vy  
+                // 8xy3 - XOR Vx, Vy  
+                // 8xy4 - ADD Vx, Vy  
+                // 8xy5 - SUB Vx, Vy 
+                // 8xy6 - SHR Vx {, Vy} 
+                // 8xy7 - SUBN Vx, Vy 
+                // 8xyE - SHL Vx {, Vy} 
+
+                match n {
+                    0x0 => { self.registers[vx] = self.registers[vy]; }
+                    0x1 => { self.registers[vx] |= self.registers[vy]; }
+                    0x2 => { self.registers[vx] &= self.registers[vy];}
+                    0x3 => { self.registers[vx] ^= self.registers[vy]; }
+                    0x4 => { 
+                        let (result, carry) = self.registers[vx].overflowing_add(self.registers[vy]);
+                        self.registers[vx] = result;
+                        self.registers[0xF] = carry as u8;
+                    }   
+                    0x5 => {
+                        let (result, borrow) = self.registers[vx].overflowing_sub(self.registers[vy]);
+                        self.registers[vx] = result;
+                        self.registers[0xF] = (!borrow) as u8;
+                    }
+                    0x6 => {
+                        self.registers[0xF] = self.registers[vx] & 1;
+                        self.registers[vx] >>= 1;
+                    }
+                    0x7 => {
+                        let (result, borrow) = self.registers[vy].overflowing_sub(self.registers[vx]);
+                        self.registers[vx] = result;
+                        self.registers[0x0F] = (!borrow) as u8;
+                    }
+                    0xE => {
+                        self.registers[0xF] = (self.registers[vx] >> 7) & 1;
+                        self.registers[vx] <<= 1;
+                    }
+                    _ => { unimplemented!("Opcode {:04X}", opcode); }
+                }
+            } 
+            0x9000 => { 
+                // SNE Vx, Vy
+                if self.registers[vx] != self.registers[vy] {
+                    self.pc += 2;
+                }
+            } 
             0xA000 => {  self.index = nnn } //  LD I, addr
             0xD000 => { 
                 // decoder already extracted vx, vy and n
@@ -240,6 +295,30 @@ impl Cpu {
 
                     0x18 => {
                         self.sound_timer = self.registers[vx];
+                    }
+
+                    0x1E => {
+                        self.index += self.registers[vx] as u16;
+                    }
+
+                    0x33 => {
+                        let value = self.registers[vx];
+
+                        self.memory[self.index as usize] = value / 100;
+                        self.memory[self.index as usize + 1] = (value / 10) % 10;
+                        self.memory[self.index as usize + 2] = value % 10;
+                    }
+
+                    0x55 => {
+                        for i in 0..=vx {
+                            self.memory[self.index as usize + i] = self.registers[i];
+                        }
+                    }
+
+                    0x65 => {
+                        for i in 0..=vx {
+                            self.registers[i] = self.memory[self.index as usize + i];
+                        }
                     }
 
                     _ => todo!("Opcode {:04X}", opcode),
