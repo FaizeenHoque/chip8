@@ -100,7 +100,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "chip8"
+name = "chip8-emulator"
 version = "0.1.0"
 dependencies = [
  "minifb",
