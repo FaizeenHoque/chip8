@@ -1,4 +1,5 @@
 use crate::{CHIP8_HEIGHT, CHIP8_WIDTH};
+use rand::{RngExt};
 
 const FONTSET: [u8; 80] = [
     // 0
@@ -108,6 +109,11 @@ impl Cpu {
         opcode
     }
 
+    pub fn cycle(&mut self) {
+        let opcode = self.fetch();
+        self.execute(opcode);
+    }
+
     pub fn execute(&mut self, opcode: u16) {
         // `0x0F00` is a "filter", AND-ing anything with it will return the value sitting at the F's position.
         // for example, (0x6A12 & 0x00F0) will return 0x0010
@@ -123,15 +129,14 @@ impl Cpu {
         match opcode & 0xF000 {
             0x0000 => {  
                 // CLS
-                match opcode {
-                    0x00E0 => {
+                match kk {
+                    0xE0 => {
                         // clear screen
                         for row in &mut self.display {
                             row.fill(false);
                         }
                     }
-
-                    0x00EE => {
+                    0xEE => {
                         // return
                         self.sp -= 1;
                         self.pc = self.stack[self.sp as usize];
@@ -229,6 +234,10 @@ impl Cpu {
             0xA000 => {  
                  //  LD I, addr
                 self.index = nnn 
+            }
+            0xC000 => {
+                let random: u8 = rand::rng().random();
+                self.registers[vx] = random & kk;
             }
             0xD000 => { 
                 // decoder already extracted vx, vy and n

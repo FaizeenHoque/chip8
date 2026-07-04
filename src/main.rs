@@ -14,7 +14,7 @@ const WINDOW_HEIGHT: usize = CHIP8_HEIGHT * SCALE;
 
 fn main() {
     // get rom from file and put it in rom_bytes
-    let rom_bytes = std::fs::read("roms/Airplane.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read("roms/Connect4.ch8").expect("Failed to read ROM");
     // create a new cpu
     let mut cpu = Cpu::new();
     // load the rom using the rom_bytes var
@@ -60,10 +60,17 @@ fn main() {
 
 
         // fetch instructs from rom and place them into opcode var
-        let opcode = cpu.fetch();
-        println!("{:03X}: {:04X}", cpu.pc - 2, opcode);
-        // execute opcodes
-        cpu.execute(opcode);
+        for _ in 0..10 {
+            cpu.cycle();
+        }
+
+        if cpu.delay_timer > 0 {
+            cpu.delay_timer -= 1;
+        }
+
+        if cpu.sound_timer > 0 {
+            cpu.sound_timer -= 1;
+        }
         
         for y in 0..CHIP8_HEIGHT { 
             for x in 0..CHIP8_WIDTH {
