@@ -1,5 +1,13 @@
 mod cpu;
 
+use rodio::{
+    OutputStreamBuilder,
+    Sink,
+    Source,
+    source::SineWave,
+};
+use std::time::Duration;
+
 use minifb::{Window, WindowOptions};
 
 use crate::cpu::Cpu;
@@ -14,12 +22,25 @@ const WINDOW_HEIGHT: usize = CHIP8_HEIGHT * SCALE;
 
 const CPU_CYCLES_PER_FRAME: usize = 10;
 
-const PIXEL_ON: u32 = 0x9BBC0F;
-const PIXEL_OFF: u32 = 0x0F380F;
+const PIXEL_ON: u32 = 0x66FF99;
+const PIXEL_OFF: u32 = 0x081208;
 
 fn main() {
+
+    let stream = OutputStreamBuilder::open_default_stream().unwrap();
+
+    let sink = Sink::connect_new(stream.mixer());
+
+    sink.append(
+        SineWave::new(440.0)
+            .amplify(0.15)
+            .repeat_infinite()
+    );
+
+    sink.pause();
+
     // get rom from file and put it in rom_bytes
-    let rom_bytes = std::fs::read("roms/5-quirks.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read("roms/Tetris.ch8").expect("Failed to read ROM");
     // create a new cpu
     let mut cpu = Cpu::new();
     // load the rom using the rom_bytes var
@@ -48,6 +69,12 @@ fn main() {
         // fetch instructs from rom and place them into opcode var
         for _ in 0..CPU_CYCLES_PER_FRAME {
             cpu.cycle();
+        }
+
+        if cpu.sound_timer > 0 {
+            sink.play();
+        } else {
+            sink.pause();
         }
 
         cpu.update_timers();
