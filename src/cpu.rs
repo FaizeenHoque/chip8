@@ -114,6 +114,16 @@ impl Cpu {
         self.execute(opcode);
     }
 
+    pub fn update_timers(&mut self) {
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
+    }
+
     pub fn execute(&mut self, opcode: u16) {
         // `0x0F00` is a "filter", AND-ing anything with it will return the value sitting at the F's position.
         // for example, (0x6A12 & 0x00F0) will return 0x0010
@@ -234,6 +244,9 @@ impl Cpu {
             0xA000 => {  
                  //  LD I, addr
                 self.index = nnn 
+            }
+            0xB000 => {
+                self.pc = nnn + self.registers[0] as u16;
             }
             0xC000 => {
                 let random: u8 = rand::rng().random();

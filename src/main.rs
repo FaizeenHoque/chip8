@@ -12,9 +12,14 @@ const SCALE: usize = 20;
 const WINDOW_WIDTH: usize = CHIP8_WIDTH * SCALE;
 const WINDOW_HEIGHT: usize = CHIP8_HEIGHT * SCALE;
 
+const CPU_CYCLES_PER_FRAME: usize = 10;
+
+const PIXEL_ON: u32 = 0x9BBC0F;
+const PIXEL_OFF: u32 = 0x0F380F;
+
 fn main() {
     // get rom from file and put it in rom_bytes
-    let rom_bytes = std::fs::read("roms/Connect4.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read("roms/5-quirks.ch8").expect("Failed to read ROM");
     // create a new cpu
     let mut cpu = Cpu::new();
     // load the rom using the rom_bytes var
@@ -38,6 +43,27 @@ fn main() {
     // close window if ESCAPE key is pressed
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
 
+        update_keypad(&mut cpu, &window);
+
+        // fetch instructs from rom and place them into opcode var
+        for _ in 0..CPU_CYCLES_PER_FRAME {
+            cpu.cycle();
+        }
+
+        cpu.update_timers();
+        
+        draw(&cpu, & mut buffer);
+
+        // update window with buffer
+        window
+            .update_with_buffer(&buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
+            .unwrap();
+    }
+
+
+}
+
+fn update_keypad(cpu: &mut Cpu, window: &Window) {
         cpu.keypad[0x0] = window.is_key_down(minifb::Key::X);
         cpu.keypad[0x1] = window.is_key_down(minifb::Key::Key1);
         cpu.keypad[0x2] = window.is_key_down(minifb::Key::Key2);
@@ -57,27 +83,16 @@ fn main() {
         cpu.keypad[0xD] = window.is_key_down(minifb::Key::R);
         cpu.keypad[0xE] = window.is_key_down(minifb::Key::F);
         cpu.keypad[0xF] = window.is_key_down(minifb::Key::V);
+}
 
 
-        // fetch instructs from rom and place them into opcode var
-        for _ in 0..10 {
-            cpu.cycle();
-        }
-
-        if cpu.delay_timer > 0 {
-            cpu.delay_timer -= 1;
-        }
-
-        if cpu.sound_timer > 0 {
-            cpu.sound_timer -= 1;
-        }
-        
-        for y in 0..CHIP8_HEIGHT { 
+fn draw(cpu: &Cpu, buffer: &mut [u32]) {
+    for y in 0..CHIP8_HEIGHT { 
             for x in 0..CHIP8_WIDTH {
                 let color = if cpu.display[y][x] {
-                    0xFFFFFFFF
+                    PIXEL_ON
                 } else {
-                    0x00000000
+                    PIXEL_OFF
                 };
 
                 // scale pixels according to the window 
@@ -91,12 +106,4 @@ fn main() {
                 }
             }
         }
-
-        // update window with buffer
-        window
-            .update_with_buffer(&buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
-            .unwrap();
-    }
-
-
 }
