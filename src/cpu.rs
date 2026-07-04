@@ -45,9 +45,11 @@ pub struct Cpu {
     pub sound_timer: u8,
     pub memory: [u8; 4096],
 
-
     // 64x32 pixel display
     pub display: [[bool; 64]; 32],
+
+    // keypad / input
+    pub keypad: [bool; 16],
 }
 
 impl Cpu {
@@ -62,6 +64,7 @@ impl Cpu {
             sound_timer: 0,
             memory: [0; 4096],
             display: [[false; 64]; 32],
+            keypad: [false; 16],
         };
 
         for (i, &byte) in FONTSET.iter().enumerate() {
@@ -325,9 +328,37 @@ impl Cpu {
                         }
                     }
 
+                    0x0A => {
+                        for i in 0..16 {
+                            if self.keypad[i] {
+                                self.registers[vx] = i as u8;
+                                return;
+                            }
+                        }
+
+                        self.pc -= 2;
+                    }
+
                     _ => todo!("Opcode {:04X}", opcode),
                 }
              }
+            0xE000 => { 
+                match kk {
+                    0x9E => {
+                        let key = self.registers[vx] as usize;
+                        if self.keypad[key] {
+                            self.pc += 2;
+                        }
+                    }
+                    0xA1 => {
+                        let key = self.registers[vx] as usize;
+                        if !self.keypad[key] {
+                            self.pc += 2;
+                        }
+                    }
+                    _ => { unimplemented!("Opcode {:04X}", opcode); }
+                }
+            }
             _ => { unimplemented!("Opcode {:04X}", opcode); }
         }
         

@@ -14,7 +14,7 @@ const WINDOW_HEIGHT: usize = CHIP8_HEIGHT * SCALE;
 
 fn main() {
     // get rom from file and put it in rom_bytes
-    let rom_bytes = std::fs::read("roms/Chip8 Picture.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read("roms/Airplane.ch8").expect("Failed to read ROM");
     // create a new cpu
     let mut cpu = Cpu::new();
     // load the rom using the rom_bytes var
@@ -37,6 +37,28 @@ fn main() {
 
     // close window if ESCAPE key is pressed
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
+
+        cpu.keypad[0x0] = window.is_key_down(minifb::Key::X);
+        cpu.keypad[0x1] = window.is_key_down(minifb::Key::Key1);
+        cpu.keypad[0x2] = window.is_key_down(minifb::Key::Key2);
+        cpu.keypad[0x3] = window.is_key_down(minifb::Key::Key3);
+
+        cpu.keypad[0x4] = window.is_key_down(minifb::Key::Q);
+        cpu.keypad[0x5] = window.is_key_down(minifb::Key::W);
+        cpu.keypad[0x6] = window.is_key_down(minifb::Key::E);
+        cpu.keypad[0x7] = window.is_key_down(minifb::Key::A);
+
+        cpu.keypad[0x8] = window.is_key_down(minifb::Key::S);
+        cpu.keypad[0x9] = window.is_key_down(minifb::Key::D);
+        cpu.keypad[0xA] = window.is_key_down(minifb::Key::Z);
+        cpu.keypad[0xB] = window.is_key_down(minifb::Key::C);
+
+        cpu.keypad[0xC] = window.is_key_down(minifb::Key::Key4);
+        cpu.keypad[0xD] = window.is_key_down(minifb::Key::R);
+        cpu.keypad[0xE] = window.is_key_down(minifb::Key::F);
+        cpu.keypad[0xF] = window.is_key_down(minifb::Key::V);
+
+
         // fetch instructs from rom and place them into opcode var
         let opcode = cpu.fetch();
         println!("{:03X}: {:04X}", cpu.pc - 2, opcode);
