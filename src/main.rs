@@ -27,20 +27,21 @@ const PIXEL_OFF: u32 = 0x081208;
 
 fn main() {
 
+    let rom_path = std::env::args()
+    .nth(1)
+    .expect("Usage: chip8-emulator <rom>");
+
     let stream = OutputStreamBuilder::open_default_stream().unwrap();
-
     let sink = Sink::connect_new(stream.mixer());
-
     sink.append(
         SineWave::new(440.0)
             .amplify(0.15)
             .repeat_infinite()
     );
-
     sink.pause();
 
     // get rom from file and put it in rom_bytes
-    let rom_bytes = std::fs::read("roms/Tetris.ch8").expect("Failed to read ROM");
+    let rom_bytes = std::fs::read(&rom_path).expect("Failed to read ROM");
     // create a new cpu
     let mut cpu = Cpu::new();
     // load the rom using the rom_bytes var
